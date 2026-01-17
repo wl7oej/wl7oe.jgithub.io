@@ -279,7 +279,7 @@
                             style="margin: 0; color: #66BB6A; font-size: 16px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;">
                             [ 내용 ]</p>
                         <p id="cardName"
-                            style="margin: 2px 0 0 0; color: #ffffff; font-size: 80px; font-weight: 900; line-height: 1; letter-spacing: -4px;">
+                            style="margin: 2px 0 0 0; color: #ffffff; font-size: 80px; font-weight: 900; line-height: 1; letter-spacing: 0px;">
                             NAME</p>
                         <p id="cardDesc" style="margin: 15px 0 0 0; max-width: 600px; color: #d0d0d0; font-size: 16px; line-height: 1.7; font-weight: 400; white-space: pre-wrap;">‘내용’</p>
                     </div>
