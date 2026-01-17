@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catchphrase Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        /* --- 에디터 UI 스타일 --- */
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #121212;
+            color: white;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        /* 왼쪽 컨트롤 패널 */
+        .controls {
+            flex: 1;
+            min-width: 340px;
+            background: #252525;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            height: fit-content;
+        }
+
+        .mode-switcher {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            background: #333;
+            padding: 5px;
+            border-radius: 8px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+            color: #aaa;
+            background: transparent;
+        }
+
+        .mode-btn.active {
+            color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .mode-btn[data-mode="sentinel"].active { background-color: #1B5E20; }
+        .mode-btn[data-mode="guide"].active { background-color: #FFC107; color: #000; }
+
+        .control-group {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 20px;
+        }
+
+        .control-group h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #ddd;
+            font-size: 1.1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            color: #bbb;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            background: #333;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+
+        .color-wrapper {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #333;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        
+        .color-wrapper label {
+            margin-bottom: 0;
+            font-size: 0.9rem;
+            color: #fff;
+        }
+
+        input[type="color"] {
+            width: 50px;
+            height: 30px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .element-palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .element-btn {
+            background: #333;
+            border: 1px solid #444;
+            color: #eee;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+
+        .element-btn:hover {
+            background: #444;
+            transform: translateY(-2px);
+        }
+
+        input[type="file"] {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .save-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        button.save-btn {
+            flex: 1;
+            padding: 16px;
+            background-color: #444;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button.save-btn:hover {
+            background-color: #555;
+        }
+
+        button.save-btn.primary {
+            background-color: #1B5E20; 
+        }
+        button.save-btn.primary:hover {
+            background-color: #2e7d32;
+        }
+
+        .preview-area {
+            flex: 1.5;
+            min-width: 400px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="controls">
+        <div class="mode-switcher">
+            <button class="mode-btn active" data-mode="sentinel" onclick="setMode('sentinel')">센티넬 (Sentinel)</button>
+            <button class="mode-btn" data-mode="guide" onclick="setMode('guide')">가이드 (Guide)</button>
+        </div>
+
+        <div class="control-group">
+            <h3>내용 수정</h3>
+            <label>태그 (Tag)</label>
+            <input type="text" id="inputTag">
+            <label>등급/레벨 (Level Info)</label>
+            <input type="text" id="inputLevel">
+            <label>이름 (Name)</label>
+            <input type="text" id="inputName">
+            <label>설명 (Description)</label>
+            <textarea id="inputDesc" rows="4"></textarea>
+            <label style="margin-top: 15px;">배경 이미지 업로드</label>
+            <input type="file" id="imgUpload" accept="image/*">
+        </div>
+
+        <div class="control-group">
+            <h3>스타일 설정</h3>
+            
+            <label style="margin-bottom: 10px; color: #fff;">속성 선택 (자동 적용)</label>
+            <div id="elementPalette" class="element-palette">
+                </div>
+
+            <hr style="border-color: #444; margin: 20px 0;">
+
+            <div class="color-wrapper">
+                <label>메인 색상 (배경/테두리)</label>
+                <input type="color" id="colorMain">
+            </div>
+            
+            <div class="color-wrapper">
+                <label>보조 색상 (텍스트 강조)</label>
+                <input type="color" id="colorAccent">
+            </div>
+        </div>
+
+        <div class="save-group">
+            <button class="save-btn" onclick="saveImage(1)">기본 저장<br><span style="font-size:0.8em; font-weight:normal;">(가로 800px)</span></button>
+            <button class="save-btn primary" onclick="saveImage(2)">고화질 저장<br><span style="font-size:0.8em; font-weight:normal;">(가로 1600px)</span></button>
+        </div>
+    </div>
+
+    <div class="preview-area">
+        <div id="captureTarget" style="padding: 10px;">
+            <div id="cardBorder" class="card-border"
+                style="background: #080808; width: 800px; margin: auto; font-family: 'Inter', 'Noto Sans KR', sans-serif; border-radius: 12px 12px 0 0; overflow: hidden; 
+                border-top: 1px solid rgba(27, 94, 32, 0.15); 
+                border-left: 1px solid rgba(27, 94, 32, 0.15); 
+                border-right: 1px solid rgba(27, 94, 32, 0.15); 
+                border-bottom: 2px solid #1B5E20; 
+                position: relative; box-shadow: none;"> 
+                
+                <div id="cardBg"
+                    style="height: 600px; width: 100%; background-color: #333; background-position: center 20%; background-size: cover; background-repeat: no-repeat; position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; padding: 40px; box-sizing: border-box; text-shadow: 0 5px 20px rgba(0,0,0,0.9);">
+                    
+                    <div id="cardOverlay"
+                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(0deg, rgba(8,8,8,1) 5%, rgba(8,8,8,0.85) 15%, rgba(8,8,8,0) 60%); z-index: 1;">
+                    </div>
+                    
+                    <div style="position: absolute; top: 25px; right: 25px; z-index: 3;">
+                        <span id="cardTag"
+                            style="display: block; background: #1B5E20; color: #ffffff; padding: 8px 15px; font-size: 13px; font-weight: 800; border-radius: 5px; text-transform: uppercase; letter-spacing: 1.5px; text-shadow: none !important;">?-CLASS ENTITY</span>
+                    </div>
+                    
+                    <div style="position: relative; z-index: 2;">
+                        <p id="cardLevel"
+                            style="margin: 0; color: #66BB6A; font-size: 16px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;">
+                            [ 내용 ]</p>
+                        <p id="cardName"
+                            style="margin: 2px 0 0 0; color: #ffffff; font-size: 80px; font-weight: 900; line-height: 1; letter-spacing: -4px;">
+                            NAME</p>
+                        <p id="cardDesc" style="margin: 15px 0 0 0; max-width: 600px; color: #d0d0d0; font-size: 16px; line-height: 1.7; font-weight: 400; white-space: pre-wrap;">‘내용’</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const elementColors = [
+        { name: "불 (Fire)", main: "#ff4800", accent: "#ff6a00" },
+        { name: "물 (Water)", main: "#0D47A1", accent: "#42A5F5" },
+        { name: "풀 (Grass)", main: "#1B5E20", accent: "#66BB6A" },
+        { name: "번개 (Volt)", main: "#ffc700", accent: "#ffdc4a" },
+        { name: "바람 (Wind)", main: "#40E0D0", accent: "#40E0D0" },
+        { name: "얼음 (Ice)", main: "#A0E6FF", accent: "#B0F0FF" },
+        { name: "무 (Void)", main: "#B0BEC5", accent: "#B0BEC5" }
+    ];
+
+    const themes = {
+        sentinel: {
+            name: "NAME",
+            level: "[ 내용 ]",
+            tag: "?-CLASS ENTITY",
+            desc: "‘내용’",
+            imgUrl: "",
+            colorMain: "#525252",
+            colorAccent: "#b0b0b0",
+            bgContainer: "#080808",
+            borderStyle: "1px solid rgba(27, 94, 32, 0.15)",
+            overlayGradient: "linear-gradient(0deg, rgba(8,8,8,1) 5%, rgba(8,8,8,0.85) 15%, rgba(8,8,8,0) 60%)",
+            textShadowName: "0 5px 20px rgba(0,0,0,0.9)",
+            textShadowLevel: "none",
+            descColor: "#d0d0d0"
+        },
+        guide: {
+            name: "NAME",
+            level: "[ 내용 ]",
+            tag: "?-CLASS ENTITY",
+            desc: "‘내용’",
+            imgUrl: "",
+            colorMain: "#525252",
+            colorAccent: "#b0b0b0",
+            bgContainer: "linear-gradient(135deg, #f3f5f3, #ffffff)",
+            borderStyle: "1px solid rgba(147, 161, 148, 0.3)",
+            overlayGradient: "linear-gradient(0deg, rgba(0,0,0,0.7) 10%, rgba(0,0,0,0) 50%)",
+            textShadowName: "0px 2px 8px rgba(0, 0, 0, 0.9)",
+            textShadowLevel: "0 2px 4px rgba(0, 0, 0, 0.8), 0 0 5px rgba(255, 255, 255, 0.4)",
+            descColor: "#E0E0E0"
+        }
+    };
+
+    let currentMode = 'sentinel';
+
+    const inputs = {
+        name: document.getElementById('inputName'),
+        level: document.getElementById('inputLevel'),
+        tag: document.getElementById('inputTag'),
+        desc: document.getElementById('inputDesc'),
+        colorMain: document.getElementById('colorMain'),
+        colorAccent: document.getElementById('colorAccent'),
+        imgUpload: document.getElementById('imgUpload')
+    };
+
+    const targets = {
+        border: document.getElementById('cardBorder'),
+        bg: document.getElementById('cardBg'),
+        overlay: document.getElementById('cardOverlay'),
+        name: document.getElementById('cardName'),
+        level: document.getElementById('cardLevel'),
+        tag: document.getElementById('cardTag'),
+        desc: document.getElementById('cardDesc')
+    };
+
+    function createElementButtons() {
+        const container = document.getElementById('elementPalette');
+        elementColors.forEach(el => {
+            const btn = document.createElement('div');
+            btn.className = 'element-btn';
+            btn.innerHTML = `
+                <div style="display:flex; width:100%; height:8px; gap:2px; border-radius:4px; overflow:hidden;">
+                    <div style="flex:1; background:${el.main}"></div>
+                    <div style="flex:1; background:${el.accent}"></div>
+                </div>
+                <span>${el.name.split(' ')[0]}</span>
+            `;
+            btn.onclick = () => {
+                inputs.colorMain.value = el.main;
+                inputs.colorAccent.value = el.accent;
+                inputs.colorMain.dispatchEvent(new Event('input'));
+                inputs.colorAccent.dispatchEvent(new Event('input'));
+            };
+            container.appendChild(btn);
+        });
+    }
+
+    function setMode(mode) {
+        currentMode = mode;
+        const data = themes[mode];
+
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+
+        inputs.name.value = data.name;
+        inputs.level.value = data.level;
+        inputs.tag.value = data.tag;
+        inputs.desc.value = data.desc;
+        inputs.colorMain.value = data.colorMain;
+        inputs.colorAccent.value = data.colorAccent;
+
+        updatePreview();
+    }
+
+    function updatePreview() {
+        targets.name.innerText = inputs.name.value;
+        targets.level.innerText = inputs.level.value;
+        targets.tag.innerText = inputs.tag.value;
+        targets.desc.innerText = inputs.desc.value;
+
+        const data = themes[currentMode];
+        
+        if (!targets.bg.style.backgroundImage) {
+            targets.bg.style.backgroundImage = `url('${data.imgUrl}')`;
+        }
+        
+        targets.border.style.background = data.bgContainer;
+        targets.border.style.boxShadow = data.boxShadow;
+        targets.border.style.borderTop = data.borderStyle;
+        targets.border.style.borderLeft = data.borderStyle;
+        targets.border.style.borderRight = data.borderStyle;
+        targets.border.style.borderBottom = `2px solid ${inputs.colorMain.value}`;
+        
+        targets.overlay.style.background = data.overlayGradient;
+        targets.name.style.textShadow = data.textShadowName;
+        targets.level.style.textShadow = data.textShadowLevel;
+        targets.desc.style.textShadow = data.textShadowName;
+        targets.desc.style.color = data.descColor;
+
+        targets.tag.style.backgroundColor = inputs.colorMain.value;
+        targets.level.style.color = inputs.colorAccent.value;
+    }
+
+    inputs.name.addEventListener('input', updatePreview);
+    inputs.level.addEventListener('input', updatePreview);
+    inputs.tag.addEventListener('input', updatePreview);
+    inputs.desc.addEventListener('input', updatePreview);
+    inputs.colorMain.addEventListener('input', updatePreview);
+    inputs.colorAccent.addEventListener('input', updatePreview);
+
+    inputs.imgUpload.addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                targets.bg.style.backgroundImage = `url('${e.target.result}')`;
+            }
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    });
+
+    function saveImage(scaleValue) {
+        const element = document.getElementById('cardBorder');
+        
+        html2canvas(element, {
+            scale: scaleValue, 
+            backgroundColor: null,
+            useCORS: true,
+        }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `character_card_${currentMode}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+    }
+
+    createElementButtons();
+    setMode('sentinel');
+</script>
+
+</body>
+</html>
